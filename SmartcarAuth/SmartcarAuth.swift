@@ -30,6 +30,8 @@ import SafariServices
  (e.g. `exchange` or `cb`) is preserved as a `mode` query arg, and the
  remaining query args are kept:
  `sc<id>://exchange?code=abc` -> `carplay://sc<id>?mode=exchange&code=abc`.
+ The wrapping scheme defaults to `carplay` and is configurable via
+ `SmartcarAuth.carplayScheme`.
  Returns the input unchanged if it is nil or has no scheme.
  */
 func carplayRedirectUri(from redirectUri: String?) -> String? {
@@ -42,7 +44,7 @@ func carplayRedirectUri(from redirectUri: String?) -> String? {
     }
 
     var carplay = URLComponents()
-    carplay.scheme = "carplay"
+    carplay.scheme = SmartcarAuth.carplayScheme
     carplay.host = oldScheme
 
     var items: [URLQueryItem] = []
@@ -60,6 +62,11 @@ Smartcar Authentication SDK for iOS written in Swift 5.
     - Facilitates the authorization flow to launch the flow and retrieve an authorization code
 */
 @objcMembers public class SmartcarAuth: NSObject {
+    /// The scheme used to wrap the redirect URI for CarPlay routing.
+    /// Defaults to `"carplay"`. Set once at app launch, before building an
+    /// auth URL, so the sent `redirect_uri` and the intercept host stay in sync.
+    public static var carplayScheme = "carplay"
+
     var applicationId: String
     var redirectUri: String?
     var scope: [String]?
