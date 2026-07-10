@@ -60,7 +60,7 @@ import Foundation
             URLQueryItem(name: "sdk_version", value: SmartcarAuthVersion.current)
         ])
 
-        if let redirectUri = redirectUri?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let redirectUri = carplayRedirectUri(from: redirectUri)?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             self.queryItems.append(URLQueryItem(name: "redirect_uri", value: redirectUri))
         }
 
@@ -101,7 +101,7 @@ import Foundation
             URLQueryItem(name: "sdk_platform", value: "iOS")
         ])
 
-        if let redirectUri = redirectUri?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let redirectUri = carplayRedirectUri(from: redirectUri)?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             self.queryItems.append(URLQueryItem(name: "redirect_uri", value: redirectUri))
         }
 

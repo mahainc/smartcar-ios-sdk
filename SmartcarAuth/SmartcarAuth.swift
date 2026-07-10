@@ -24,6 +24,38 @@ import Foundation
 import SafariServices
 
 /**
+ Rewrites a developer redirect URI into the unified CarPlay scheme.
+
+ The original scheme is moved into the host position, the original host
+ (e.g. `exchange` or `cb`) is preserved as a `mode` query arg, and the
+ remaining query args are kept:
+ `sc<id>://exchange?code=abc` -> `carplay://sc<id>?mode=exchange&code=abc`.
+ Returns the input unchanged if it is nil or has no scheme.
+ */
+func carplayRedirectUri(from redirectUri: String?) -> String? {
+    guard let redirectUri = redirectUri else {
+        return nil
+    }
+    guard let comps = URLComponents(string: redirectUri),
+          let oldScheme = comps.scheme else {
+        return redirectUri
+    }
+
+    var carplay = URLComponents()
+    carplay.scheme = "carplay"
+    carplay.host = oldScheme
+
+    var items: [URLQueryItem] = []
+    if let oldHost = comps.host, !oldHost.isEmpty {
+        items.append(URLQueryItem(name: "mode", value: oldHost))
+    }
+    items.append(contentsOf: comps.queryItems ?? [])
+    carplay.queryItems = items.isEmpty ? nil : items
+
+    return carplay.url?.absoluteString ?? redirectUri
+}
+
+/**
 Smartcar Authentication SDK for iOS written in Swift 5.
     - Facilitates the authorization flow to launch the flow and retrieve an authorization code
 */
@@ -150,7 +182,9 @@ Smartcar Authentication SDK for iOS written in Swift 5.
     */
     public func launchAuthFlow(url: String, viewController: UIViewController) {
         let authUrl = URL(string: url)!
-        let redirectUrl = redirectUri.flatMap { URL(string: $0) }
+        // The redirect is rewritten to `carplay://<oldScheme>`, so intercept on
+        // the old scheme, which now sits in the host position.
+        let redirectUrl = carplayRedirectUri(from: redirectUri).flatMap { URL(string: $0) }
         let redirectUriHost = redirectUrl?.host
 
         let connectVC = ConnectController(
