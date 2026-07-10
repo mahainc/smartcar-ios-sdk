@@ -1,8 +1,8 @@
 // swift-tools-version:5.3
 import PackageDescription
 
-let version = "$VERSION_TAG"
-let checksum = "$XCFRAMEWORK_CHECKSUM"
+let version = "v6.5.0"
+let checksum = "cb5c2ced5ee71d60e782c846ea741f486c9c77de355dd2881cd4d28887cf03d8"
 
 let package = Package(
     name: "SmartcarAuth",
