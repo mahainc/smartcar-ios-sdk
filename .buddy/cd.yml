@@ -72,8 +72,8 @@
   - action: GitHub Release
     type: GIT_HUB_RELEASE
     integration: ios_sdk_release
-    organization: smartcar
-    repository: ios-sdk
+    organization: mahainc
+    repository: smartcar-ios-sdk
     tag_name: $VERSION_TAG
     target_commitish: $SPM_RELEASE_COMMIT
     release_name: $VERSION_TAG

@@ -27,7 +27,7 @@ pod "SmartcarAuth"
 Alternatively, you can add the Smarcar iOS SDK to your Xcode project using Swift Package Manager.
 Option 1: Add via Xcode
 1. In Xcode, go to File → Add Packages...
-2. Enter the Smartcar SDK Git URL: https://github.com/smartcar/ios-sdk.git
+2. Enter the Smartcar SDK Git URL: https://github.com/mahainc/smartcar-ios-sdk.git
 3. Select the latest version or specify a version range (e.g. "Up to Next Major" from X.X.X)
 4. Add the Smartcar product to your app target.
 
@@ -35,7 +35,7 @@ Option 2: Add via Package.swift
 If you manage your dependencies manually using Package.swift, add the following:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/smartcar/ios-sdk.git", from: "X.X.X")
+    .package(url: "https://github.com/mahainc/smartcar-ios-sdk.git", from: "X.X.X")
 ]
 ```
 
