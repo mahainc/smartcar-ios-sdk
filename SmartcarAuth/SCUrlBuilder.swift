@@ -28,6 +28,8 @@ import Foundation
     private var components: URLComponents
     private var queryItems: [URLQueryItem] = []
 
+    private static let validResponseTypes = ["code", "none"]
+
     /**
     Constructor for SCUrlBuilder. Represents the minimum requirements for an authorization URL.
     - parameters:
@@ -35,8 +37,14 @@ import Foundation
         - redirectUri: Optional. The application's redirect URI. If not specified, uses default set in the Smartcar developer dashboard.
         - scope: Optional. An array of authorization scopes. If not specified, fall backs to defaults set in the Smartcar developer dashboard.
         - mode: Optional, determine what mode Smartcar Connect should be launched in. Should be one of test, live or simulated. If none specified, defaults to live mode.
+        - responseType: Optional, determines whether Connect completes the flow via redirect (`"code"`) or via the `complete` RPC (`"none"`). Defaults to `"code"`.
     */
-    public init(applicationId: String, redirectUri: String? = nil, scope: [String] = [], mode: SCMode? = nil) {
+    public init(applicationId: String, redirectUri: String? = nil, scope: [String] = [], mode: SCMode? = nil, responseType: String = "code") {
+        precondition(
+            SCUrlBuilder.validResponseTypes.contains(responseType),
+            "responseType must be one of: \(SCUrlBuilder.validResponseTypes.joined(separator: ", "))"
+        )
+
         self.components = URLComponents()
         self.components.scheme = "https"
         self.components.host = "connect.smartcar.com"
@@ -46,12 +54,13 @@ import Foundation
 
         self.queryItems.append(contentsOf: [
             URLQueryItem(name: "application_id", value: applicationId),
-            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "response_type", value: responseType),
             URLQueryItem(name: "mode", value: connectMode),
-            URLQueryItem(name: "sdk_platform", value: "iOS")
+            URLQueryItem(name: "sdk_platform", value: "iOS"),
+            URLQueryItem(name: "sdk_version", value: SmartcarAuthVersion.current)
         ])
 
-        if let redirectUri = redirectUri?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let redirectUri = carplayRedirectUri(from: redirectUri)?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             self.queryItems.append(URLQueryItem(name: "redirect_uri", value: redirectUri))
         }
 
@@ -92,7 +101,7 @@ import Foundation
             URLQueryItem(name: "sdk_platform", value: "iOS")
         ])
 
-        if let redirectUri = redirectUri?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+        if let redirectUri = carplayRedirectUri(from: redirectUri)?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
             self.queryItems.append(URLQueryItem(name: "redirect_uri", value: redirectUri))
         }
 
@@ -196,6 +205,8 @@ import Foundation
     }
     
     /**
+     Deprecated, please use `setExternalId(externalId:)` instead.
+
      Specify a unique identifier for the vehicle owner to track and aggregate analytics across Connect sessions for each vehicle owner
 
     - parameters:
@@ -203,9 +214,25 @@ import Foundation
     - returns:
         A reference to this object
     */
+    @available(*, deprecated, renamed: "setExternalId(externalId:)")
     public func setUser(user: String) -> SCUrlBuilder {
         if (!user.isEmpty) {
             self.queryItems.append(URLQueryItem(name: "user", value: user))
+        }
+        return self
+    }
+
+    /**
+     Specify a unique identifier for the vehicle owner to track and aggregate analytics across Connect sessions for each vehicle owner, look up connections, and receive in webhook payloads.
+
+    - parameters:
+      - externalId An optional developer-defined unique identifier for a vehicle owner.
+    - returns:
+        A reference to this object
+    */
+    public func setExternalId(externalId: String) -> SCUrlBuilder {
+        if (!externalId.isEmpty) {
+            self.queryItems.append(URLQueryItem(name: "external_id", value: externalId))
         }
         return self
     }
