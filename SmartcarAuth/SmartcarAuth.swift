@@ -23,28 +23,42 @@
 import Foundation
 import SafariServices
 
-/**
- Rewrites a developer redirect URI into the unified CarPlay scheme.
-
- The original scheme is moved into the host position, the original host
- (e.g. `exchange` or `cb`) is preserved as a `mode` query arg, and the
- remaining query args are kept:
- `sc<id>://exchange?code=abc` -> `carplay://sc<id>?mode=exchange&code=abc`.
- The wrapping scheme defaults to `carplay` and is configurable via
- `SmartcarAuth.carplayScheme`.
- Returns the input unchanged if it is nil or has no scheme.
- */
+/// Optionally wraps a developer redirect URI into a unified routing scheme.
+///
+/// The CarPlay wrapping is OPT-IN: it only applies when
+/// `SmartcarAuth.carplayScheme` is set to a non-empty value. This matters
+/// because Smartcar Connect validates the `redirect_uri` it is sent against
+/// the URIs registered for the app — a rewritten scheme that isn't
+/// registered is rejected. So by DEFAULT the developer's redirect URI
+/// (typically a registered custom scheme like `sc<id>://exchange`) is used
+/// verbatim.
+///
+/// When `carplayScheme` IS set, the original scheme is moved into the host
+/// position, the original host (e.g. `exchange`) is preserved as a `mode`
+/// query arg, and the remaining query args are kept:
+/// `sc<id>://exchange?code=abc` -> `carplay://sc<id>?mode=exchange&code=abc`.
+/// (Only use this when the wrapped scheme is itself registered with
+/// Smartcar.)
+///
+/// Returns the input unchanged if it is nil, has no scheme, or no
+/// `carplayScheme` is set.
 func carplayRedirectUri(from redirectUri: String?) -> String? {
     guard let redirectUri = redirectUri else {
         return nil
     }
+    // Opt-in: no wrapping scheme configured -> use the redirect as-is so
+    // the registered custom scheme reaches Smartcar unchanged.
+    guard let wrapScheme = SmartcarAuth.carplayScheme, !wrapScheme.isEmpty else {
+        return redirectUri
+    }
     guard let comps = URLComponents(string: redirectUri),
-          let oldScheme = comps.scheme else {
+        let oldScheme = comps.scheme
+    else {
         return redirectUri
     }
 
     var carplay = URLComponents()
-    carplay.scheme = SmartcarAuth.carplayScheme
+    carplay.scheme = wrapScheme
     carplay.host = oldScheme
 
     var items: [URLQueryItem] = []
@@ -57,21 +71,27 @@ func carplayRedirectUri(from redirectUri: String?) -> String? {
     return carplay.url?.absoluteString ?? redirectUri
 }
 
-/**
-Smartcar Authentication SDK for iOS written in Swift 5.
-    - Facilitates the authorization flow to launch the flow and retrieve an authorization code
-*/
+/// Smartcar Authentication SDK for iOS written in Swift 5.
+///     - Facilitates the authorization flow to launch the flow and retrieve an authorization code
 @objcMembers public class SmartcarAuth: NSObject {
-    /// The scheme used to wrap the redirect URI for CarPlay routing.
-    /// Defaults to `"carplay"`. Set once at app launch, before building an
-    /// auth URL, so the sent `redirect_uri` and the intercept host stay in sync.
-    public static var carplayScheme = "carplay"
+    /// Optional scheme used to wrap the redirect URI for CarPlay routing.
+    /// `nil`/empty (the default) means NO wrapping — the developer's
+    /// registered redirect URI is sent to Smartcar verbatim, which is what
+    /// Smartcar requires. Set this (once, at app launch, before building an
+    /// auth URL) ONLY when the wrapping scheme is itself registered with
+    /// Smartcar; the sent `redirect_uri` and the intercept host both derive
+    /// from it, so they stay in sync.
+    public static var carplayScheme: String? = nil
 
     var applicationId: String
     var redirectUri: String?
     var scope: [String]?
     var responseType: String
-    var completionHandler: (_ code: String?, _ state: String?, _ virtualKeyUrl: String?, _ userId: String?, _ externalId: String?, _ error: AuthorizationError?) -> Void
+    var completionHandler:
+        (
+            _ code: String?, _ state: String?, _ virtualKeyUrl: String?, _ userId: String?, _ externalId: String?,
+            _ error: AuthorizationError?
+        ) -> Void
     var mode: SCMode?
     @available(*, deprecated, message: "Use mode instead")
     var testMode: Bool
@@ -177,7 +197,9 @@ Smartcar Authentication SDK for iOS written in Swift 5.
     */
     public func authUrlBuilder() -> SCUrlBuilder {
         let resolvedMode = mode ?? (testMode ? .test : .live)
-        return SCUrlBuilder(applicationId: applicationId, redirectUri: redirectUri, scope: scope ?? [], mode: resolvedMode, responseType: responseType)
+        return SCUrlBuilder(
+            applicationId: applicationId, redirectUri: redirectUri, scope: scope ?? [], mode: resolvedMode,
+            responseType: responseType)
     }
 
     /**
@@ -232,7 +254,8 @@ Smartcar Authentication SDK for iOS written in Swift 5.
         if let error = error {
             switch error {
             case "vehicle_incompatible":
-                authorizationError = AuthorizationError(type: .vehicleIncompatible, errorDescription: errorDescription, vehicleInfo: vehicle)
+                authorizationError = AuthorizationError(
+                    type: .vehicleIncompatible, errorDescription: errorDescription, vehicleInfo: vehicle)
             case "invalid_subscription":
                 authorizationError = AuthorizationError(type: .invalidSubscription, errorDescription: errorDescription)
             case "access_denied":
@@ -240,7 +263,9 @@ Smartcar Authentication SDK for iOS written in Swift 5.
             case "no_vehicles":
                 authorizationError = AuthorizationError(type: .noVehicles, errorDescription: errorDescription)
             case "configuration_error":
-                authorizationError = AuthorizationError(type: .configurationError, errorDescription: errorDescription, statusCode: statusCode, errorMessage: errorMessage)
+                authorizationError = AuthorizationError(
+                    type: .configurationError, errorDescription: errorDescription, statusCode: statusCode,
+                    errorMessage: errorMessage)
             case "server_error":
                 authorizationError = AuthorizationError(type: .serverError, errorDescription: errorDescription)
             case "user_manually_returned_to_application", "user_cancelled":
@@ -269,7 +294,8 @@ Smartcar Authentication SDK for iOS written in Swift 5.
     public func handleCallback(callbackUrl: URL) {
         let urlComp = URLComponents(url: callbackUrl, resolvingAgainstBaseURL: false)
         guard let query = urlComp?.queryItems else {
-            let authorizationError = AuthorizationError(type: .missingQueryParameters, errorDescription: nil, vehicleInfo: nil)
+            let authorizationError = AuthorizationError(
+                type: .missingQueryParameters, errorDescription: nil, vehicleInfo: nil)
             return self.completionHandler(nil, nil, nil, nil, nil, authorizationError)
         }
 
